@@ -69,11 +69,16 @@ export default function MacroCircle({
         )}
       </svg>
 
-      <div className="text-xs mt-2 text-center">
+      <div className="text-xs mt-2 text-center space-y-0.5">
         <div className="font-semibold">
           {current.toFixed(1)}
         </div>
-        <div className="text-gray-500">{label}</div>
+        <div className="text-gray-500 text-[11px]">
+          / {target.toFixed(0)}
+        </div>
+        <div className="text-gray-500">
+          {label}
+        </div>
       </div>
     </div>
   );

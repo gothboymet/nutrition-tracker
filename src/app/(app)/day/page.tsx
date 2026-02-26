@@ -167,35 +167,54 @@ setMeals(mealsData || []);
       .select("*")
       .in("meal_id", meals.map((m) => m.id));
 
-    setItems(data || []);
+    const itemsData = data || [];
+
+    setItems(itemsData);
+
+    // 🔥 ВАЖНО: синхронизируем gramsMap
+    const map: Record<string, string> = {};
+    itemsData.forEach((item) => {
+      map[item.id] = String(item.grams);
+    });
+
+    setGramsMap(map);
   };
 
   const addItem = async (mealId: string, product: Product) => {
-  await supabase.from("meal_items").insert({
-    meal_id: mealId,
-    product_id: product.id,
-    grams: 100,
-    order_index: 0,
-    calories_per_100g_snapshot: product.calories_per_100g,
-    protein_per_100g_snapshot: product.protein_per_100g,
-    fat_per_100g_snapshot: product.fat_per_100g,
-    carbs_per_100g_snapshot: product.carbs_per_100g,
-    fiber_per_100g_snapshot: product.fiber_per_100g,
-    salt_per_100g_snapshot: product.salt_per_100g,
-  });
+    await supabase.from("meal_items").insert({
+      meal_id: mealId,
+      product_id: product.id,
+      grams: 0,
+      order_index: 0,
+      calories_per_100g_snapshot: product.calories_per_100g,
+      protein_per_100g_snapshot: product.protein_per_100g,
+      fat_per_100g_snapshot: product.fat_per_100g,
+      carbs_per_100g_snapshot: product.carbs_per_100g,
+      fiber_per_100g_snapshot: product.fiber_per_100g,
+      salt_per_100g_snapshot: product.salt_per_100g,
+    });
 
-  refreshItems();
+    refreshItems();
 
-  setSearchMap((prev) => ({
-    ...prev,
-    [mealId]: "",
-  }));
-};
+    setSearchMap((prev) => ({
+      ...prev,
+      [mealId]: "",
+    }));
+  };
 
   const updateGrams = async (id: string, grams: number) => {
     if (grams < 0) return;
-    await supabase.from("meal_items").update({ grams }).eq("id", id);
-    refreshItems();
+
+    await supabase
+      .from("meal_items")
+      .update({ grams })
+      .eq("id", id);
+
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, grams } : item
+      )
+    );
   };
 
   const deleteItem = async (id: string) => {

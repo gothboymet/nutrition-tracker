@@ -18,7 +18,8 @@ type Product = {
 export default function ProductsPage() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
-
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<any>(null);
   const [form, setForm] = useState({
     name: "",
     calories: "",
@@ -32,6 +33,45 @@ export default function ProductsPage() {
   useEffect(() => {
     loadProducts();
   }, []);
+
+  const startEdit = (product: Product) => {
+  setEditingId(product.id);
+  setEditForm({
+    name: product.name,
+    calories: String(product.calories_per_100g),
+    protein: String(product.protein_per_100g),
+    fat: String(product.fat_per_100g),
+    carbs: String(product.carbs_per_100g),
+    fiber: String(product.fiber_per_100g),
+    salt: String(product.salt_per_100g),
+  });
+};
+
+  const saveEdit = async () => {
+  if (!editingId) return;
+
+  await supabase
+    .from("products")
+    .update({
+      name: editForm.name,
+      calories_per_100g: Number(editForm.calories) || 0,
+      protein_per_100g: Number(editForm.protein) || 0,
+      fat_per_100g: Number(editForm.fat) || 0,
+      carbs_per_100g: Number(editForm.carbs) || 0,
+      fiber_per_100g: Number(editForm.fiber) || 0,
+      salt_per_100g: Number(editForm.salt) || 0,
+    })
+    .eq("id", editingId);
+
+  setEditingId(null);
+  setEditForm(null);
+  loadProducts();
+};
+
+  const cancelEdit = () => {
+  setEditingId(null);
+  setEditForm(null);
+};
 
   const loadProducts = async () => {
     const { data: userData } = await supabase.auth.getUser();
@@ -148,29 +188,91 @@ export default function ProductsPage() {
           {products.map((p) => (
             <div
               key={p.id}
-              className="border border-gray-200 rounded-xl p-4 bg-white flex justify-between items-start"
+              className="border border-gray-200 rounded-xl p-4 bg-white space-y-3"
             >
-            <div>
-              <div className="text-sm font-medium">
-                {p.name}
-              </div>
+              {editingId === p.id ? (
+                <>
+                  <input
+                    value={editForm.name}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, name: e.target.value })
+                    }
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  />
 
-              <div className="text-xs text-gray-500 mt-1">
-                {p.calories_per_100g} kcal · 
-                P {p.protein_per_100g} · 
-                F {p.fat_per_100g} · 
-                C {p.carbs_per_100g} · 
-                Fiber {p.fiber_per_100g} · 
-                Salt {p.salt_per_100g}
-              </div>
-            </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {[
+                      { key: "calories", label: "kcal" },
+                      { key: "protein", label: "Protein" },
+                      { key: "fat", label: "Fat" },
+                      { key: "carbs", label: "Carbs" },
+                      { key: "fiber", label: "Fiber" },
+                      { key: "salt", label: "Salt" },
+                    ].map((field) => (
+                      <input
+                        key={field.key}
+                        type="number"
+                        value={editForm[field.key]}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            [field.key]: e.target.value,
+                          })
+                        }
+                        placeholder={field.label}
+                        className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+                      />
+                    ))}
+                  </div>
 
-            <button
-              onClick={() => archiveProduct(p.id)}
-              className="text-xs text-gray-500 hover:text-black transition"
-            >
-              Archive
-            </button>
+                  <div className="flex gap-3 text-xs">
+                    <button
+                      onClick={saveEdit}
+                      className="text-black font-medium"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="text-gray-500"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="text-sm font-medium">
+                      {p.name}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {p.calories_per_100g} kcal · 
+                      P {p.protein_per_100g} · 
+                      F {p.fat_per_100g} · 
+                      C {p.carbs_per_100g} · 
+                      Fiber {p.fiber_per_100g} · 
+                      Salt {p.salt_per_100g}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 text-xs">
+                    <button
+                      onClick={() => startEdit(p)}
+                      className="text-gray-500 hover:text-black"
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => archiveProduct(p.id)}
+                      className="text-gray-500 hover:text-black"
+                    >
+                      Archive
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
