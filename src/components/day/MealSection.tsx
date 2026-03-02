@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import {ChevronUp, ChevronDown, Trash2 } from "lucide-react";
 
 type Meal = {
   id: string;
@@ -73,23 +74,24 @@ export default function MealSection({
 
         <div className="flex gap-2">
         <Button
-            variant="ghost"
-            onClick={() => handleMoveMeal(index, "up")}
+          variant="ghost"
+          onClick={() => handleMoveMeal(index, "up")}
         >
-            ↑
+          <ChevronUp size={16} strokeWidth={1.5} />
         </Button>
         <Button
-        variant="ghost"
-        onClick={() => handleMoveMeal(index, "down")}
+          variant="ghost"
+          onClick={() => handleMoveMeal(index, "down")}
         >
-        ↓
+          <ChevronDown size={16} strokeWidth={1.5} />
         </Button>
 
         <Button
-        variant="ghost"
-        onClick={() => handleDeleteMeal(meal.id)}
+          variant="ghost"
+          onClick={() => handleDeleteMeal(meal.id)}
+          className="text-gray-400 hover:text-red-500"
         >
-        🗑
+          <Trash2 size={16} strokeWidth={1.5} />
         </Button>
         </div>
       </div>
@@ -104,9 +106,9 @@ export default function MealSection({
 
           return (
             <div key={item.id} className="space-y-1">
-              <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
                 <div
-                  className="cursor-pointer"
+                  className="flex-1 truncate cursor-pointer"
                   onClick={() =>
                     setExpandedItems((prev) => ({
                       ...prev,
@@ -117,7 +119,7 @@ export default function MealSection({
                   {product?.name}
                 </div>
 
-                <div className="flex gap-2 items-center">
+                <div className="flex items-center gap-2">
                   <Input
                     type="number"
                     value={gramsMap[item.id] ?? ""}
@@ -136,10 +138,13 @@ export default function MealSection({
                         updateGrams(item.id, num);
                       }
                     }}
-                    className="w-20"
+                    className="w-18 flex-none text-right"
                 />
-                  <button onClick={() => deleteItem(item.id)}>
-                    🗑
+                  <button
+                    onClick={() => deleteItem(item.id)}
+                    className="text-gray-400 hover:text-black transition"
+                  >
+                    <Trash2 size={16} strokeWidth={1.5} />
                   </button>
                 </div>
               </div>
@@ -162,7 +167,7 @@ export default function MealSection({
         const totals = calculateMealTotals(meal.id);
 
         return (
-            <div className="border-t pt-3 text-xs text-gray-500 flex flex-wrap gap-3">
+            <div className="border-t pt-3 mt-3 text-xs text-gray-500 flex flex-wrap gap-4">
             <span>{totals.calories} kcal</span>
             <span>P {totals.protein.toFixed(1)}</span>
             <span>F {totals.fat.toFixed(1)}</span>

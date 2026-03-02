@@ -40,6 +40,9 @@ export default function Header() {
 
           <button
             onClick={async () => {
+              const confirmed = confirm("Are you sure you want to log out?");
+              if (!confirmed) return;
+
               await supabase.auth.signOut();
               location.href = "/login";
             }}

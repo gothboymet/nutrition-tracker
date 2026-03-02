@@ -9,6 +9,7 @@ import MacroCircle from "@/components/ui/MacroCircle";
 import LinearBar from "@/components/ui/LinearBar";
 import MealSection from "@/components/day/MealSection";
 import Button from "@/components/ui/Button";
+import { ChevronLeft, ChevronRight} from "lucide-react";
 
 type Meal = {
   id: string;
@@ -61,105 +62,108 @@ export default function DayPage() {
   );
   const [tempDate, setTempDate] = useState(selectedDate);
 
-  useEffect(() => {
-    const init = async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) {
-        router.push("/login");
-        return;
-      }
+const loadDay = async () => {
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    router.push("/login");
+    return;
+  }
 
-      const userId = userData.user.id;
+  const userId = userData.user.id;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", userId)
-        .single();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
 
-      let { data: existingDay } = await supabase
-        .from("days")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("date", selectedDate)
-        .single();
+  let { data: existingDay } = await supabase
+    .from("days")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("date", selectedDate)
+    .single();
 
-      if (!existingDay) {
-        const targets = calculateTargets(
-          Number(profile.weight),
-          Number(profile.calorie_target),
-          profile.mode
-        );
+  if (!existingDay) {
+    const targets = calculateTargets(
+      Number(profile.weight),
+      Number(profile.calorie_target),
+      profile.mode
+    );
 
-        const { data: newDay } = await supabase
-          .from("days")
-          .insert({
-            user_id: userId,
-            date: selectedDate,
-            ...targets,
-          })
-          .select()
-          .single();
+    const { data: newDay } = await supabase
+      .from("days")
+      .insert({
+        user_id: userId,
+        date: selectedDate,
+        ...targets,
+      })
+      .select()
+      .single();
 
-        existingDay = newDay;
-      }
+    existingDay = newDay;
+  }
 
-      setDay(existingDay);
+  setDay(existingDay);
 
-      let { data: mealsData } = await supabase
-        .from("meals")
-        .select("*")
-        .eq("day_id", existingDay.id)
-        .order("order_index", { ascending: true });
+  let { data: mealsData } = await supabase
+    .from("meals")
+    .select("*")
+    .eq("day_id", existingDay.id)
+    .order("order_index", { ascending: true });
 
-      if (!mealsData || mealsData.length === 0) {
-        const defaultMeals = [
-          { name: "Breakfast", order_index: 0 },
-          { name: "Lunch", order_index: 1 },
-          { name: "Dinner", order_index: 2 },
-          { name: "Snack", order_index: 3 },
-        ];
+  if (!mealsData || mealsData.length === 0) {
+    const defaultMeals = [
+      { name: "Breakfast", order_index: 0 },
+      { name: "Lunch", order_index: 1 },
+      { name: "Dinner", order_index: 2 },
+      { name: "Snack", order_index: 3 },
+    ];
 
-        const { data: insertedMeals } = await supabase
-          .from("meals")
-          .insert(
-            defaultMeals.map((m) => ({
-              ...m,
-              day_id: existingDay.id,
-            }))
-          )
-          .select()
-          .order("order_index", { ascending: true });
+    const { data: insertedMeals } = await supabase
+      .from("meals")
+      .insert(
+        defaultMeals.map((m) => ({
+          ...m,
+          day_id: existingDay.id,
+        }))
+      )
+      .select()
+      .order("order_index", { ascending: true });
 
-        mealsData = insertedMeals;
-      }
+    mealsData = insertedMeals;
+  }
 
-setMeals(mealsData || []);
+  setMeals(mealsData || []);
 
-      const { data: productsData } = await supabase
-        .from("products")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("archived", false);
+  const { data: productsData } = await supabase
+    .from("products")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("archived", false);
 
-      setProducts(productsData || []);
+  setProducts(productsData || []);
 
-      const { data: itemsData } = await supabase
-        .from("meal_items")
-        .select("*")
-        .in("meal_id", (mealsData || []).map((m) => m.id));
+  const { data: itemsData } = await supabase
+    .from("meal_items")
+    .select("*")
+    .in("meal_id", (mealsData || []).map((m) => m.id));
 
-      setItems(itemsData || []);
-      const map: Record<string, string> = {};
-      (itemsData || []).forEach((item) => {
-        map[item.id] = String(item.grams);
-      });
-      setGramsMap(map);
-      setLoading(false);
-    };
+  const itemsSafe = itemsData || [];
+  setItems(itemsSafe);
 
-    init();
-  }, [router, selectedDate]);
+  const map: Record<string, string> = {};
+  itemsSafe.forEach((item) => {
+    map[item.id] = String(item.grams);
+  });
+
+  setGramsMap(map);
+  setLoading(false);
+};
+
+useEffect(() => {
+  loadDay();
+}, [router, selectedDate]);
 
   const refreshItems = async () => {
     const { data } = await supabase
@@ -421,8 +425,7 @@ setMeals(mealsData || []);
     await supabase.from("meal_items").insert(copiedItems);
   }
 
-  await refreshMeals();
-  await refreshItems();
+  await loadDay();
 };
 
   const refreshMeals = async () => {
@@ -488,7 +491,7 @@ setMeals(mealsData || []);
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Button onClick={() => changeDate("prev")} variant="ghost">
-            ←
+            <ChevronLeft size={18} strokeWidth={1.5} />
           </Button>
 
           <Button
@@ -504,7 +507,7 @@ setMeals(mealsData || []);
           </Button>
 
           <Button onClick={() => changeDate("next")} variant="ghost">
-            →
+            <ChevronRight size={18} strokeWidth={1.5} />
           </Button>
         </div>
 

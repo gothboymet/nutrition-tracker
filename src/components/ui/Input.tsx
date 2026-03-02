@@ -19,7 +19,7 @@ export default function Input({
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className={`w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-black ${className}`}
+      className={`border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-black ${className}`}
     />
   );
 }
