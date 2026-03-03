@@ -132,20 +132,20 @@ export default function ProductsPage() {
   const inputClass = "w-full border border-black px-3 py-2";
 
   return (
-    <div className="min-h-screen bg-white text-black">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
         <h1 className="text-xl font-semibold tracking-tight">
           Products
         </h1>
 
-        <div className="border border-gray-200 rounded-xl p-5 bg-white space-y-4">
+        <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 bg-white dark:bg-neutral-950 space-y-4">
           <input
             placeholder="Product name"
             value={form.name}
             onChange={(e) =>
               setForm({ ...form, name: e.target.value })
             }
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+            className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-neutral-900 text-black dark:text-white rounded-lg px-3 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
           />
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -158,7 +158,7 @@ export default function ProductsPage() {
               { key: "salt", label: "Salt" },
             ].map((field) => (
               <div key={field.key} className="space-y-1">
-                <label className="text-xs text-gray-500">
+                <label className="text-xs text-zinc-500 dark:text-zinc-400">
                   {field.label} / 100g
                 </label>
                 <input
@@ -170,7 +170,7 @@ export default function ProductsPage() {
                       [field.key]: e.target.value,
                     })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                  className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-neutral-900 text-black dark:text-white rounded-lg px-2 py-1.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
                 />
               </div>
             ))}
@@ -178,7 +178,15 @@ export default function ProductsPage() {
 
           <button
             onClick={addProduct}
-            className="w-full bg-black text-white py-2 rounded-lg text-sm hover:bg-gray-800 transition"
+            className="
+              w-full
+              bg-black text-white
+              hover:bg-zinc-800
+              dark:bg-white dark:text-black
+              dark:hover:bg-gray-200
+              py-2 rounded-lg text-sm
+              transition
+            "
           >
             Add Product
           </button>
@@ -188,7 +196,7 @@ export default function ProductsPage() {
           {products.map((p) => (
             <div
               key={p.id}
-              className="border border-gray-200 rounded-xl p-4 bg-white space-y-3"
+              className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 bg-white dark:bg-neutral-950 space-y-3"
             >
               {editingId === p.id ? (
                 <>
@@ -197,7 +205,7 @@ export default function ProductsPage() {
                     onChange={(e) =>
                       setEditForm({ ...editForm, name: e.target.value })
                     }
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-neutral-900 text-black dark:text-white rounded-lg px-3 py-2 text-base sm:text-sm"
                   />
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -220,7 +228,7 @@ export default function ProductsPage() {
                           })
                         }
                         placeholder={field.label}
-                        className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+                        className="border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-neutral-900 text-black dark:text-white rounded-lg px-2 py-1.5 text-base sm:text-sm"
                       />
                     ))}
                   </div>
@@ -234,7 +242,7 @@ export default function ProductsPage() {
                     </button>
                     <button
                       onClick={cancelEdit}
-                      className="text-gray-500"
+                      className="text-zinc-500"
                     >
                       Cancel
                     </button>
@@ -246,7 +254,7 @@ export default function ProductsPage() {
                     <div className="text-sm font-medium">
                       {p.name}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
+                    <div className="text-xs text-zinc-500 mt-1">
                       {p.calories_per_100g} kcal · 
                       P {p.protein_per_100g} · 
                       F {p.fat_per_100g} · 
@@ -259,14 +267,18 @@ export default function ProductsPage() {
                   <div className="flex gap-3 text-xs">
                     <button
                       onClick={() => startEdit(p)}
-                      className="text-gray-500 hover:text-black"
+                      className="text-zinc-500 dark:text-zinc-400 hover:text-black dark:hover:text-white transition"
                     >
                       Edit
                     </button>
 
                     <button
-                      onClick={() => archiveProduct(p.id)}
-                      className="text-gray-500 hover:text-black"
+                      onClick={() => {
+                        const confirmed = confirm("Archive this product?");
+                        if (!confirmed) return;
+                        archiveProduct(p.id);
+                      }}
+                      className="text-zinc-500 dark:text-zinc-400 hover:text-black dark:hover:text-white transition"
                     >
                       Archive
                     </button>

@@ -15,6 +15,7 @@ export default function ProfilePage() {
   const [mode, setMode] = useState<Mode>("cut");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const modes: Mode[] = ["cut", "bulk"];
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -156,59 +157,84 @@ export default function ProfilePage() {
 };
 
   return (
-    <div className="min-h-screen bg-white text-black">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
-        <div className="border border-gray-200 rounded-xl p-6 bg-white space-y-5">
+        <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 bg-white dark:bg-neutral-950 space-y-5">
           <h1 className="text-xl font-semibold tracking-tight">Profile</h1>
 
           <div className="space-y-1.5">
-            <label className="text-xs text-gray-500">
+            <label className="text-xs text-zinc-500 dark:text-zinc-400">
               Weight (kg)
             </label>
             <input
               type="number"
               value={weight}
               onChange={(e) => setWeight(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-neutral-900 text-black dark:text-white rounded-lg px-3 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs text-gray-500">
+            <label className="text-xs text-zinc-500 dark:text-zinc-400">
               Calorie Target
             </label>
             <input
               type="number"
               value={calories}
               onChange={(e) => setCalories(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-neutral-900 text-black dark:text-white rounded-lg px-3 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs text-gray-500">
+            <label className="text-xs text-zinc-500 dark:text-zinc-400">
               Mode
             </label>
-            <select
-              value={mode}
-              onChange={(e) => setMode(e.target.value as Mode)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-            >
-              <option value="cut">Cut</option>
-              <option value="bulk">Bulk</option>
-            </select>
+
+            <div className="flex rounded-lg border border-zinc-300 dark:border-zinc-700 overflow-hidden">
+              {modes.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  className={`flex-1 py-2 text-sm capitalize transition ${
+                    mode === m
+                      ? "bg-zinc-200 dark:bg-neutral-800 text-black dark:text-white"
+                      : "bg-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-neutral-900"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
           </div>
 
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full bg-black text-white py-2 rounded-lg text-sm hover:bg-gray-800 transition disabled:opacity-50"
+            className="
+              w-full
+              bg-black text-white
+              hover:bg-zinc-800
+              dark:bg-white dark:text-black
+              dark:hover:bg-zinc-200
+              py-2 rounded-lg text-sm
+              transition disabled:opacity-50
+              "
           >
             {saving ? "Saving..." : "Save"}
           </button>
           <button
             onClick={handleExport}
-            className="w-full border border-gray-300 py-2 rounded-lg text-sm hover:bg-gray-100 transition"
+            className="
+              w-full
+              border border-zinc-300 dark:border-zinc-700
+              bg-white dark:bg-neutral-900
+              text-black dark:text-white
+              py-2 rounded-lg text-sm
+              hover:bg-zinc-100 dark:hover:bg-neutral-800
+              transition
+              "
           >
             Export Data (JSON)
           </button>

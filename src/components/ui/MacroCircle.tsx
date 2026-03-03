@@ -14,7 +14,7 @@ export default function MacroCircle({
   const normalizedRadius = radius - stroke / 2;
   const circumference = normalizedRadius * 2 * Math.PI;
 
-  const ratio = current / target;
+  const ratio = target > 0 ? current / target : 0;
   const progress = Math.min(ratio, 1);
 
   const strokeDashoffset =
@@ -31,8 +31,9 @@ export default function MacroCircle({
   return (
     <div className="flex flex-col items-center">
       <svg height={radius * 2} width={radius * 2}>
+        {/* Background */}
         <circle
-          stroke="#e5e5e5"
+          className="stroke-zinc-200 dark:stroke-zinc-800"
           fill="transparent"
           strokeWidth={stroke}
           r={normalizedRadius}
@@ -40,8 +41,9 @@ export default function MacroCircle({
           cy={radius}
         />
 
+        {/* Main progress */}
         <circle
-          stroke="black"
+          className="stroke-foreground transition-all"
           fill="transparent"
           strokeWidth={stroke}
           strokeDasharray={`${circumference} ${circumference}`}
@@ -53,9 +55,10 @@ export default function MacroCircle({
           transform={`rotate(-90 ${radius} ${radius})`}
         />
 
+        {/* Overflow */}
         {overflow && (
           <circle
-            stroke="white"
+            className="stroke-background"
             fill="transparent"
             strokeWidth={stroke * 0.6}
             strokeDasharray={`${circumference} ${circumference}`}
@@ -70,13 +73,15 @@ export default function MacroCircle({
       </svg>
 
       <div className="text-xs mt-2 text-center space-y-0.5">
-        <div className="font-semibold">
+        <div className="font-semibold text-foreground">
           {current.toFixed(1)}
         </div>
-        <div className="text-gray-500 text-[11px]">
+
+        <div className="text-zinc-500 dark:text-zinc-400 text-[11px]">
           / {target.toFixed(0)}
         </div>
-        <div className="text-gray-500">
+
+        <div className="text-zinc-500 dark:text-zinc-400">
           {label}
         </div>
       </div>

@@ -16,11 +16,20 @@ export default function Button({
 
   const variants = {
     primary:
-      "bg-black text-white hover:bg-gray-800",
+      "bg-foreground text-background hover:opacity-90",
+
     secondary:
-      "border border-gray-300 hover:bg-gray-100",
+      `
+      border border-zinc-300 dark:border-zinc-700
+      bg-background
+      hover:bg-zinc-100 dark:hover:bg-zinc-800
+      `,
+
     ghost:
-      "hover:bg-gray-100",
+      `
+      hover:bg-zinc-100
+      dark:hover:bg-zinc-800
+      `,
   };
 
   return (

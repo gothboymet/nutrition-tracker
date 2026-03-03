@@ -12,7 +12,7 @@ export default function CalorieCircle({
   const normalizedRadius = radius - stroke / 2;
   const circumference = normalizedRadius * 2 * Math.PI;
 
-  const ratio = current / target;
+  const ratio = target > 0 ? current / target : 0;
   const progress = Math.min(ratio, 1);
 
   const strokeDashoffset =
@@ -29,8 +29,9 @@ export default function CalorieCircle({
   return (
     <div className="flex flex-col items-center">
       <svg height={radius * 2} width={radius * 2}>
+        {/* Background circle */}
         <circle
-          stroke="#e5e5e5"
+          className="stroke-zinc-200 dark:stroke-zinc-800"
           fill="transparent"
           strokeWidth={stroke}
           r={normalizedRadius}
@@ -38,8 +39,9 @@ export default function CalorieCircle({
           cy={radius}
         />
 
+        {/* Main progress */}
         <circle
-          stroke="black"
+          className="stroke-foreground transition-all"
           fill="transparent"
           strokeWidth={stroke}
           strokeDasharray={`${circumference} ${circumference}`}
@@ -51,9 +53,10 @@ export default function CalorieCircle({
           transform={`rotate(-90 ${radius} ${radius})`}
         />
 
+        {/* Overflow */}
         {overflow && (
           <circle
-            stroke="white"
+            className="stroke-background"
             fill="transparent"
             strokeWidth={stroke * 0.6}
             strokeDasharray={`${circumference} ${circumference}`}
@@ -68,10 +71,10 @@ export default function CalorieCircle({
       </svg>
 
       <div className="mt-2 text-center">
-        <div className="text-xl font-semibold">
+        <div className="text-xl font-semibold text-foreground">
           {current}
         </div>
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-zinc-500 dark:text-zinc-400">
           / {target}
         </div>
       </div>

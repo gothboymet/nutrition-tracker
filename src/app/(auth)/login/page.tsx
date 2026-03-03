@@ -95,7 +95,7 @@ export default function LoginPage() {
             autoFocus
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={handleEnter}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-black"
           />
 
           {/* Password (hidden in reset mode) */}
@@ -106,7 +106,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={handleEnter}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-black"
             />
           )}
 
@@ -114,7 +114,7 @@ export default function LoginPage() {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full bg-black text-white py-2 rounded-lg text-sm hover:bg-gray-800 transition disabled:opacity-50"
+            className="w-full bg-black text-white py-2 rounded-lg text-base sm:text-sm hover:bg-gray-800 transition disabled:opacity-50"
           >
             {loading
               ? "Please wait..."

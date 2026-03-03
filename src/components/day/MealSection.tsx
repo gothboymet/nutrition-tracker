@@ -68,7 +68,7 @@ export default function MealSection({
   setGramsMap,
 }: Props) {
   return (
-    <div className="border border-gray-200 rounded-xl p-4 space-y-3 bg-white">
+    <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-3 bg-background transition-colors">
       <div className="flex justify-between items-center">
         <h2 className="text-sm font-semibold tracking-tight">{meal.name}</h2>
 
@@ -89,7 +89,7 @@ export default function MealSection({
         <Button
           variant="ghost"
           onClick={() => handleDeleteMeal(meal.id)}
-          className="text-gray-400 hover:text-red-500"
+          className="text-zinc-400 dark:text-zinc-500 hover:text-red-500"
         >
           <Trash2 size={16} strokeWidth={1.5} />
         </Button>
@@ -142,7 +142,7 @@ export default function MealSection({
                 />
                   <button
                     onClick={() => deleteItem(item.id)}
-                    className="text-gray-400 hover:text-black transition"
+                    className="text-zinc-400 dark:text-zinc-500 hover:text-foreground transition"
                   >
                     <Trash2 size={16} strokeWidth={1.5} />
                   </button>
@@ -150,7 +150,7 @@ export default function MealSection({
               </div>
 
               {expandedItems[item.id] && (
-                <div className="text-xs text-gray-600 pl-2">
+                <div className="text-xs text-zinc-500 dark:text-zinc-400 pl-2">
                   {calc.calories} kcal | 
                   P {calc.protein.toFixed(1)} | 
                   F {calc.fat.toFixed(1)} | 
@@ -167,7 +167,7 @@ export default function MealSection({
         const totals = calculateMealTotals(meal.id);
 
         return (
-            <div className="border-t pt-3 mt-3 text-xs text-gray-500 flex flex-wrap gap-4">
+            <div className="border-t border-zinc-200 dark:border-zinc-800 pt-3 mt-3 text-xs text-zinc-500 dark:text-zinc-400 flex flex-wrap gap-4">
             <span>{totals.calories} kcal</span>
             <span>P {totals.protein.toFixed(1)}</span>
             <span>F {totals.fat.toFixed(1)}</span>
@@ -187,7 +187,7 @@ export default function MealSection({
       {filteredProducts.map((p) => (
         <div
           key={p.id}
-          className="cursor-pointer hover:bg-gray-100 px-2 py-1"
+          className="cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 px-2 py-1 rounded transition"
           onClick={() => addItem(meal.id, p)}
         >
           {p.name}

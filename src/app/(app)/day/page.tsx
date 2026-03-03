@@ -285,7 +285,7 @@ useEffect(() => {
 
   const getFiberColor = () => {
     if (dayTotals.fiber < day.fiber_target) return "text-red-500";
-    return "text-black";
+    return "text-foreground";
   };
 
   const changeDate = (direction: "prev" | "next") => {
@@ -297,9 +297,9 @@ useEffect(() => {
   };
 
   const getSaltColor = () => {
-    if (dayTotals.salt < day.salt_min) return "text-gray-400";
+    if (dayTotals.salt < day.salt_min) return "text-zinc-400";
     if (dayTotals.salt > day.salt_max) return "text-red-500";
-    return "text-black";
+    return "text-foreground";
   };
 
   const smartFilter = (mealId: string) => {
@@ -487,7 +487,7 @@ useEffect(() => {
   
 
   return (
-    <div className="min-h-screen bg-white text-black">
+    <div className="min-h-screen bg-background text-foreground transition-colors">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Button onClick={() => changeDate("prev")} variant="ghost">
@@ -526,7 +526,7 @@ useEffect(() => {
                 setShowDatePicker(false);
               }
             }}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+            className="border border-zinc-300 dark:border-zinc-700 bg-background rounded-lg px-3 py-1.5 text-base sm:text-sm"
             autoFocus
           />
         ) : (
@@ -551,7 +551,7 @@ useEffect(() => {
           onChange={(e) => setSelectedDate(e.target.value)}
           className="hidden"
         />
-        <div className="border border-gray-200 rounded-xl p-5 space-y-6 bg-white">
+        <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 space-y-6 bg-background">
 
           <div className="flex justify-center">
               <CalorieCircle
@@ -586,8 +586,8 @@ useEffect(() => {
             target={day.fiber_target}
             color={
               dayTotals.fiber < day.fiber_target
-                ? "bg-red-500"
-                : "bg-black"
+              ? "bg-red-500"
+              : "bg-foreground"
             }
           />
 
@@ -597,10 +597,10 @@ useEffect(() => {
             target={day.salt_max}
             color={
               dayTotals.salt < day.salt_min
-                ? "bg-gray-400"
+                ? "bg-zinc-400"
                 : dayTotals.salt > day.salt_max
                 ? "bg-red-500"
-                : "bg-black"
+                : "bg-foreground"
             }
           />
       </div>
@@ -634,19 +634,19 @@ useEffect(() => {
             handleDeleteMeal={handleDeleteMeal}
           />
         ))}
-        <div className="border border-gray-200 rounded-xl p-4 bg-white">
+        <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 bg-background">
           <div className="flex gap-2 items-center">
             <input
               type="text"
               placeholder="Add new meal..."
               value={newMealName}
               onChange={(e) => setNewMealName(e.target.value)}
-              className="flex-1 text-sm bg-transparent border-b border-gray-200 focus:outline-none focus:border-black transition"
+              className="flex-1 text-base sm:text-sm bg-transparent border-b border-zinc-200 dark:border-zinc-700 focus:outline-none focus:border-foreground transition"
             />
 
             <button
               onClick={handleAddMeal}
-              className="text-sm text-gray-600 hover:text-black transition"
+              className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-foreground transition"
             >
               Add
             </button>

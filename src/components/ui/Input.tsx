@@ -19,7 +19,20 @@ export default function Input({
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className={`border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-black ${className}`}
+      className={`
+        bg-background
+        text-foreground
+        border border-zinc-300 dark:border-zinc-700
+        rounded-lg
+        px-3 py-1.5
+        text-base sm:text-sm
+        placeholder:text-zinc-400 dark:placeholder:text-zinc-500
+        focus:outline-none
+        focus:ring-2
+        focus:ring-foreground/20
+        transition-colors
+        ${className}
+      `}
     />
   );
 }
