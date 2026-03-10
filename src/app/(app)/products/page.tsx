@@ -236,13 +236,22 @@ export default function ProductsPage() {
                   <div className="flex gap-3 text-xs">
                     <button
                       onClick={saveEdit}
-                      className="text-black font-medium"
+                      className="
+                        text-zinc-500 dark:text-zinc-400
+                        hover:text-black dark:hover:text-white
+                        transition font-medium
+                      "
                     >
                       Save
                     </button>
+
                     <button
                       onClick={cancelEdit}
-                      className="text-zinc-500"
+                      className="
+                        text-zinc-500 dark:text-zinc-400
+                        hover:text-black dark:hover:text-white
+                        transition
+                      "
                     >
                       Cancel
                     </button>
