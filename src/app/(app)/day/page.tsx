@@ -10,6 +10,8 @@ import MacroCircle from "@/components/ui/MacroCircle";
 import LinearBar from "@/components/ui/LinearBar";
 import MealSection from "@/components/day/MealSection";
 import Button from "@/components/ui/Button";
+import BarcodeScanner from "@/components/BarcodeScanner";
+import { EMPTY_USAGE, loadUsage, quickAddsFor, Usage } from "@/lib/usage";
 import { ChevronLeft, ChevronRight} from "lucide-react";
 
 type Meal = {
@@ -27,6 +29,8 @@ type Product = {
   carbs_per_100g: number;
   fiber_per_100g: number;
   salt_per_100g: number;
+  favorite?: boolean;
+  barcode?: string | null;
 };
 
 type Day = {
@@ -62,6 +66,8 @@ export default function DayPage() {
   const [error, setError] = useState<string | null>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const loadSeq = useRef(0);
+  const [usage, setUsage] = useState<Usage>(EMPTY_USAGE);
+  const [scanMealId, setScanMealId] = useState<string | null>(null);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [items, setItems] = useState<MealItem[]>([]);
@@ -209,7 +215,26 @@ const loadDay = async () => {
   setItems(itemsSafe);
   setGramsMap(map);
   setLoading(false);
+
+  // Recent products are a nice-to-have: load them after the day is visible.
+  loadUsage(userId, date)
+    .then((u) => {
+      if (seq === loadSeq.current) setUsage(u);
+    })
+    .catch((err) => console.error("Could not load recent products", err));
 };
+
+// Coming back from the Products page (after scanning a new product):
+// reopen the day the user was on.
+useEffect(() => {
+  try {
+    const returnDate = sessionStorage.getItem("nt:returnDate");
+    if (returnDate) {
+      sessionStorage.removeItem("nt:returnDate");
+      setSelectedDate(returnDate);
+    }
+  } catch {}
+}, []);
 
 useEffect(() => {
   loadDay();
@@ -236,11 +261,18 @@ useEffect(() => {
     setGramsMap(map);
   };
 
-  const addItem = async (mealId: string, product: Product) => {
+  const usualGrams = (productId: string) =>
+    usage.byProduct[productId]?.grams ?? 0;
+
+  const addItem = async (
+    mealId: string,
+    product: Product,
+    grams: number = usualGrams(product.id)
+  ) => {
     const { error } = await supabase.from("meal_items").insert({
       meal_id: mealId,
       product_id: product.id,
-      grams: 0,
+      grams,
       order_index: 0,
       calories_per_100g_snapshot: product.calories_per_100g,
       protein_per_100g_snapshot: product.protein_per_100g,
@@ -354,23 +386,59 @@ useEffect(() => {
     );
   };
 
+  // Search order: favorites, then names that start with the query,
+  // then products you eat most often, then alphabetical.
   const smartFilter = (mealId: string) => {
-  const query = (searchMap[mealId] || "").toLowerCase().trim();
+    const query = (searchMap[mealId] || "").toLowerCase().trim();
 
-  if (!query) return []; // ⬅ ключевая строка
+    if (!query) return [];
 
-  const starts = products.filter((p) =>
-    p.name.toLowerCase().startsWith(query)
-  );
+    const count = (p: Product) => usage.byProduct[p.id]?.count ?? 0;
 
-  const includes = products.filter(
-    (p) =>
-      !p.name.toLowerCase().startsWith(query) &&
-      p.name.toLowerCase().includes(query)
-  );
+    return products
+      .filter((p) => p.name.toLowerCase().includes(query))
+      .sort(
+        (a, b) =>
+          Number(!!b.favorite) - Number(!!a.favorite) ||
+          Number(b.name.toLowerCase().startsWith(query)) -
+            Number(a.name.toLowerCase().startsWith(query)) ||
+          count(b) - count(a) ||
+          a.name.localeCompare(b.name)
+      )
+      .slice(0, 6);
+  };
 
-  return [...starts, ...includes].slice(0, 5);
-};
+  const productIds = new Set(products.map((p) => p.id));
+  const productById = (id: string) => products.find((p) => p.id === id);
+
+  const quickAddsForMeal = (mealId: string, mealName: string) =>
+    quickAddsFor(
+      usage,
+      mealName,
+      items.filter((i) => i.meal_id === mealId).map((i) => i.product_id),
+      productIds
+    ).flatMap((q) => {
+      const product = productById(q.productId);
+      return product ? [{ product, grams: q.grams }] : [];
+    });
+
+  const handleScanned = (code: string) => {
+    const mealId = scanMealId;
+    setScanMealId(null);
+    if (!mealId) return;
+
+    const known = products.find((p) => p.barcode === code);
+    if (known) {
+      addItem(mealId, known);
+      return;
+    }
+
+    // Unknown product: create it on the Products page, then come back here.
+    try {
+      sessionStorage.setItem("nt:returnDate", selectedDate);
+    } catch {}
+    router.push(`/products?barcode=${encodeURIComponent(code)}`);
+  };
 
   if (loading || !day) {
     return (
@@ -583,6 +651,12 @@ useEffect(() => {
           </button>
         </div>
       )}
+      {scanMealId && (
+        <BarcodeScanner
+          onDetected={handleScanned}
+          onClose={() => setScanMealId(null)}
+        />
+      )}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Button onClick={() => changeDate("prev")} variant="ghost">
@@ -714,6 +788,9 @@ useEffect(() => {
             addItem={addItem}
             handleMoveMeal={handleMoveMeal}
             handleDeleteMeal={handleDeleteMeal}
+            quickAdds={quickAddsForMeal(meal.id, meal.name)}
+            usualGrams={usualGrams}
+            onScan={() => setScanMealId(meal.id)}
           />
         ))}
         <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 bg-background">
