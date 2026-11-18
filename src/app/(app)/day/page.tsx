@@ -455,7 +455,12 @@ useEffect(() => {
     );
   }
 
+  // While another date is loading, the previous day's meals are still on
+  // screen. They're dimmed and locked so nothing lands on the wrong day.
+  const stale = day.date !== selectedDate;
+
   const handleCopyYesterday = async () => {
+  if (stale) return;
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return;
 
@@ -707,6 +712,12 @@ useEffect(() => {
             {formatDateLabel(selectedDate)}
           </h1>
         )}
+        <div
+          className={`space-y-8 transition-opacity ${
+            stale ? "opacity-40 pointer-events-none select-none" : ""
+          }`}
+          aria-busy={stale}
+        >
         <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 space-y-6 bg-background">
 
           <div className="flex justify-center">
@@ -810,6 +821,7 @@ useEffect(() => {
               Add
             </button>
           </div>
+        </div>
         </div>
       </div>
     </div>
