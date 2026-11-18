@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { calculateTargets } from "@/lib/calculations";
+import { addDays, formatDateLabel, localDateString } from "@/lib/date";
 import { useRouter } from "next/navigation";
 import CalorieCircle from "@/components/ui/CalorieCircle";
 import MacroCircle from "@/components/ui/MacroCircle";
@@ -28,6 +29,18 @@ type Product = {
   salt_per_100g: number;
 };
 
+type Day = {
+  id: string;
+  date: string;
+  calorie_target: number;
+  protein_target: number;
+  fat_target: number;
+  carb_target: number;
+  fiber_target: number;
+  salt_min: number;
+  salt_max: number;
+};
+
 type MealItem = {
   id: string;
   meal_id: string;
@@ -45,7 +58,10 @@ type MealItem = {
 export default function DayPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [day, setDay] = useState<any>(null);
+  const [day, setDay] = useState<Day | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const loadSeq = useRef(0);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [items, setItems] = useState<MealItem[]>([]);
@@ -57,12 +73,19 @@ export default function DayPage() {
   Record<string, boolean>
 >({});
 
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [selectedDate, setSelectedDate] = useState(() => localDateString());
   const [tempDate, setTempDate] = useState(selectedDate);
 
+const reportError = (message: string, err?: unknown) => {
+  if (err) console.error(message, err);
+  setError(message);
+};
+
 const loadDay = async () => {
+  const seq = ++loadSeq.current;
+  const date = selectedDate;
+  setError(null);
+
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) {
     router.push("/login");
@@ -71,18 +94,33 @@ const loadDay = async () => {
 
   const userId = userData.user.id;
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("*")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
-  let { data: existingDay } = await supabase
-    .from("days")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("date", selectedDate)
-    .single();
+  if (profileError) return reportError("Could not load profile.", profileError);
+
+  if (!profile) {
+    // New account: targets can't be calculated until the profile is filled in.
+    router.push("/profile");
+    return;
+  }
+
+  const findDay = () =>
+    supabase
+      .from("days")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("date", date)
+      .limit(1)
+      .maybeSingle();
+
+  const { data: foundDay, error: dayError } = await findDay();
+  if (dayError) return reportError("Could not load this day.", dayError);
+
+  let existingDay: Day | null = foundDay;
 
   if (!existingDay) {
     const targets = calculateTargets(
@@ -91,25 +129,33 @@ const loadDay = async () => {
       profile.mode
     );
 
-    const { data: newDay } = await supabase
+    const { data: newDay, error: insertError } = await supabase
       .from("days")
       .insert({
         user_id: userId,
-        date: selectedDate,
+        date,
         ...targets,
       })
       .select()
       .single();
 
-    existingDay = newDay;
+    if (insertError) {
+      // Another tab/request may have created the day at the same moment.
+      const { data: retryDay } = await findDay();
+      if (!retryDay) return reportError("Could not create this day.", insertError);
+      existingDay = retryDay;
+    } else {
+      existingDay = newDay;
+    }
   }
 
-  setDay(existingDay);
+  if (!existingDay) return;
+  const dayRow = existingDay;
 
   let { data: mealsData } = await supabase
     .from("meals")
     .select("*")
-    .eq("day_id", existingDay.id)
+    .eq("day_id", dayRow.id)
     .order("order_index", { ascending: true });
 
   if (!mealsData || mealsData.length === 0) {
@@ -120,21 +166,20 @@ const loadDay = async () => {
       { name: "Snack", order_index: 3 },
     ];
 
-    const { data: insertedMeals } = await supabase
+    const { data: insertedMeals, error: mealsError } = await supabase
       .from("meals")
       .insert(
         defaultMeals.map((m) => ({
           ...m,
-          day_id: existingDay.id,
+          day_id: dayRow.id,
         }))
       )
       .select()
       .order("order_index", { ascending: true });
 
+    if (mealsError) reportError("Could not create default meals.", mealsError);
     mealsData = insertedMeals;
   }
-
-  setMeals(mealsData || []);
 
   const { data: productsData } = await supabase
     .from("products")
@@ -142,21 +187,26 @@ const loadDay = async () => {
     .eq("user_id", userId)
     .eq("archived", false);
 
-  setProducts(productsData || []);
-
-  const { data: itemsData } = await supabase
+  const { data: itemsData, error: itemsError } = await supabase
     .from("meal_items")
     .select("*")
     .in("meal_id", (mealsData || []).map((m) => m.id));
 
-  const itemsSafe = itemsData || [];
-  setItems(itemsSafe);
+  if (itemsError) reportError("Could not load meal items.", itemsError);
 
+  // The user switched to another date while this one was loading.
+  if (seq !== loadSeq.current) return;
+
+  const itemsSafe = itemsData || [];
   const map: Record<string, string> = {};
   itemsSafe.forEach((item) => {
     map[item.id] = String(item.grams);
   });
 
+  setDay(dayRow);
+  setMeals(mealsData || []);
+  setProducts(productsData || []);
+  setItems(itemsSafe);
   setGramsMap(map);
   setLoading(false);
 };
@@ -165,11 +215,13 @@ useEffect(() => {
   loadDay();
 }, [router, selectedDate]);
 
-  const refreshItems = async () => {
-    const { data } = await supabase
+  const refreshItems = async (mealIds: string[] = meals.map((m) => m.id)) => {
+    const { data, error } = await supabase
       .from("meal_items")
       .select("*")
-      .in("meal_id", meals.map((m) => m.id));
+      .in("meal_id", mealIds);
+
+    if (error) return reportError("Could not refresh meal items.", error);
 
     const itemsData = data || [];
 
@@ -185,7 +237,7 @@ useEffect(() => {
   };
 
   const addItem = async (mealId: string, product: Product) => {
-    await supabase.from("meal_items").insert({
+    const { error } = await supabase.from("meal_items").insert({
       meal_id: mealId,
       product_id: product.id,
       grams: 0,
@@ -198,6 +250,8 @@ useEffect(() => {
       salt_per_100g_snapshot: product.salt_per_100g,
     });
 
+    if (error) return reportError("Could not add product. Check your connection.", error);
+
     refreshItems();
 
     setSearchMap((prev) => ({
@@ -206,23 +260,34 @@ useEffect(() => {
     }));
   };
 
-  const updateGrams = async (id: string, grams: number) => {
+  // Totals update instantly; the database write waits until typing pauses,
+  // so "150" is saved once instead of as 1 -> 15 -> 150 (which could arrive out of order).
+  const updateGrams = (id: string, grams: number) => {
     if (grams < 0) return;
-
-    await supabase
-      .from("meal_items")
-      .update({ grams })
-      .eq("id", id);
 
     setItems((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, grams } : item
       )
     );
+
+    clearTimeout(saveTimers.current[id]);
+    saveTimers.current[id] = setTimeout(async () => {
+      delete saveTimers.current[id];
+      const { error } = await supabase
+        .from("meal_items")
+        .update({ grams })
+        .eq("id", id);
+
+      if (error) reportError("Grams were not saved. Check your connection and try again.", error);
+    }, 500);
   };
 
   const deleteItem = async (id: string) => {
-    await supabase.from("meal_items").delete().eq("id", id);
+    clearTimeout(saveTimers.current[id]);
+    delete saveTimers.current[id];
+    const { error } = await supabase.from("meal_items").delete().eq("id", id);
+    if (error) return reportError("Could not delete item.", error);
     refreshItems();
   };
 
@@ -283,23 +348,10 @@ useEffect(() => {
 
   const dayTotals = calculateDayTotals();
 
-  const getFiberColor = () => {
-    if (dayTotals.fiber < day.fiber_target) return "text-red-500";
-    return "text-foreground";
-  };
-
   const changeDate = (direction: "prev" | "next") => {
-    const current = new Date(selectedDate);
-    current.setDate(
-        current.getDate() + (direction === "next" ? 1 : -1)
+    setSelectedDate((current) =>
+      addDays(current, direction === "next" ? 1 : -1)
     );
-    setSelectedDate(current.toISOString().split("T")[0]);
-  };
-
-  const getSaltColor = () => {
-    if (dayTotals.salt < day.salt_min) return "text-zinc-400";
-    if (dayTotals.salt > day.salt_max) return "text-red-500";
-    return "text-foreground";
   };
 
   const smartFilter = (mealId: string) => {
@@ -320,132 +372,159 @@ useEffect(() => {
   return [...starts, ...includes].slice(0, 5);
 };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading || !day) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-6 text-sm text-zinc-500">
+        {error ? (
+          <div className="space-y-3">
+            <p className="text-red-500">{error}</p>
+            <Button onClick={loadDay}>Retry</Button>
+          </div>
+        ) : (
+          "Loading..."
+        )}
+      </div>
+    );
+  }
 
   const handleCopyYesterday = async () => {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return;
 
   const userId = userData.user.id;
+  const yesterdayString = addDays(selectedDate, -1);
 
-  const today = new Date(selectedDate);
-  const yesterdayDate = new Date(today);
-  yesterdayDate.setDate(today.getDate() - 1);
-
-  const yesterdayString = yesterdayDate
-    .toISOString()
-    .split("T")[0];
-
-  // 1️⃣ Найти вчерашний день
+  // 1. Read everything from the previous day first (nothing is changed yet).
   const { data: yesterday } = await supabase
     .from("days")
     .select("*")
     .eq("user_id", userId)
     .eq("date", yesterdayString)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (!yesterday) {
-    alert("No data yesterday.");
+    alert("No data for the previous day.");
     return;
   }
 
-  if (meals.length > 0 || items.length > 0) {
-    const confirmReplace = confirm(
-      "Current day has data. Replace structure and meals?"
-    );
-    if (!confirmReplace) return;
-  }
-
-  // 2️⃣ Удаляем текущие meals (и cascade удалит meal_items)
-  await supabase
-    .from("meals")
-    .delete()
-    .eq("day_id", day.id);
-
-  // 3️⃣ Получаем вчерашние meals
-  const { data: yesterdayMeals } = await supabase
+  const { data: yesterdayMeals, error: mealsError } = await supabase
     .from("meals")
     .select("*")
     .eq("day_id", yesterday.id)
     .order("order_index", { ascending: true });
 
-  if (!yesterdayMeals) return;
+  if (mealsError) return reportError("Could not read the previous day.", mealsError);
+  if (!yesterdayMeals || yesterdayMeals.length === 0) {
+    alert("No meals on the previous day.");
+    return;
+  }
 
-  // 4️⃣ Создаём новые meals сегодня
-  const insertedMealsResponse = await supabase
+  const { data: yesterdayItems, error: itemsError } = await supabase
+    .from("meal_items")
+    .select("*")
+    .in("meal_id", yesterdayMeals.map((m) => m.id));
+
+  if (itemsError) return reportError("Could not read the previous day.", itemsError);
+
+  if (items.length > 0) {
+    const confirmReplace = confirm(
+      "This day already has products. Replace them with the previous day?"
+    );
+    if (!confirmReplace) return;
+  }
+
+  const oldMealIds = meals.map((m) => m.id);
+
+  // 2. Create the copies. Meals get clean sequential order_index values,
+  //    which are also used to match old meals to new ones.
+  const { data: insertedMeals, error: insertMealsError } = await supabase
     .from("meals")
     .insert(
-      yesterdayMeals.map((m) => ({
+      yesterdayMeals.map((m, i) => ({
         day_id: day.id,
         name: m.name,
-        order_index: m.order_index,
+        order_index: i,
       }))
     )
     .select();
 
-  const insertedMeals = insertedMealsResponse.data;
-  if (!insertedMeals) return;
+  if (insertMealsError || !insertedMeals) {
+    return reportError("Copy failed. Nothing was changed.", insertMealsError);
+  }
 
-  // 5️⃣ Копируем meal_items
-  for (let i = 0; i < yesterdayMeals.length; i++) {
-    const oldMeal = yesterdayMeals[i];
-    const newMeal = insertedMeals.find(
-      (m) => m.order_index === oldMeal.order_index
-    );
+  const newMealIdByOld: Record<string, string> = {};
+  yesterdayMeals.forEach((m, i) => {
+    const newMeal = insertedMeals.find((n) => n.order_index === i);
+    if (newMeal) newMealIdByOld[m.id] = newMeal.id;
+  });
 
-    if (!newMeal) continue;
-
-    const { data: yesterdayItems } = await supabase
-      .from("meal_items")
-      .select("*")
-      .eq("meal_id", oldMeal.id);
-
-    if (!yesterdayItems || yesterdayItems.length === 0)
-      continue;
-
-    const copiedItems = yesterdayItems.map((item) => ({
-      meal_id: newMeal.id,
+  const copiedItems = (yesterdayItems || [])
+    .filter((item) => newMealIdByOld[item.meal_id])
+    .map((item) => ({
+      meal_id: newMealIdByOld[item.meal_id],
       product_id: item.product_id,
       grams: item.grams,
       order_index: item.order_index,
-      calories_per_100g_snapshot:
-        item.calories_per_100g_snapshot,
-      protein_per_100g_snapshot:
-        item.protein_per_100g_snapshot,
-      fat_per_100g_snapshot:
-        item.fat_per_100g_snapshot,
-      carbs_per_100g_snapshot:
-        item.carbs_per_100g_snapshot,
-      fiber_per_100g_snapshot:
-        item.fiber_per_100g_snapshot,
-      salt_per_100g_snapshot:
-        item.salt_per_100g_snapshot,
+      calories_per_100g_snapshot: item.calories_per_100g_snapshot,
+      protein_per_100g_snapshot: item.protein_per_100g_snapshot,
+      fat_per_100g_snapshot: item.fat_per_100g_snapshot,
+      carbs_per_100g_snapshot: item.carbs_per_100g_snapshot,
+      fiber_per_100g_snapshot: item.fiber_per_100g_snapshot,
+      salt_per_100g_snapshot: item.salt_per_100g_snapshot,
     }));
 
-    await supabase.from("meal_items").insert(copiedItems);
+  if (copiedItems.length > 0) {
+    const { error: insertItemsError } = await supabase
+      .from("meal_items")
+      .insert(copiedItems);
+
+    if (insertItemsError) {
+      // Roll back the half-made copy; the original meals are still untouched.
+      await supabase
+        .from("meals")
+        .delete()
+        .in("id", insertedMeals.map((m) => m.id));
+      return reportError("Copy failed. Nothing was changed.", insertItemsError);
+    }
+  }
+
+  // 3. Only now remove the old meals (meal_items are removed by cascade).
+  if (oldMealIds.length > 0) {
+    const { error: deleteError } = await supabase
+      .from("meals")
+      .delete()
+      .in("id", oldMealIds);
+    if (deleteError) reportError("Copied, but old meals could not be removed.", deleteError);
   }
 
   await loadDay();
 };
 
   const refreshMeals = async () => {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("meals")
     .select("*")
     .eq("day_id", day.id)
     .order("order_index", { ascending: true });
 
+  if (error) return reportError("Could not refresh meals.", error);
   setMeals(data || []);
 };
 
   const handleAddMeal = async () => {
   if (!newMealName.trim()) return;
 
-  await supabase.from("meals").insert({
+  const nextIndex =
+    meals.reduce((max, m) => Math.max(max, m.order_index), -1) + 1;
+
+  const { error } = await supabase.from("meals").insert({
     day_id: day.id,
-    name: newMealName,
-    order_index: meals.length,
+    name: newMealName.trim(),
+    order_index: nextIndex,
   });
+
+  if (error) return reportError("Could not add meal.", error);
 
   setNewMealName("");
   refreshMeals();
@@ -454,10 +533,11 @@ useEffect(() => {
   const handleDeleteMeal = async (mealId: string) => {
   if (!confirm("Delete this meal?")) return;
 
-  await supabase.from("meals").delete().eq("id", mealId);
+  const { error } = await supabase.from("meals").delete().eq("id", mealId);
+  if (error) return reportError("Could not delete meal.", error);
 
   refreshMeals();
-  refreshItems();
+  refreshItems(meals.filter((m) => m.id !== mealId).map((m) => m.id));
 };
 
   const handleMoveMeal = async (
@@ -468,18 +548,25 @@ useEffect(() => {
 
   if (newIndex < 0 || newIndex >= meals.length) return;
 
-  const mealA = meals[index];
-  const mealB = meals[newIndex];
+  // Swap in the list, then renumber every meal 0..n-1. This also repairs
+  // duplicate order_index values left over from older versions.
+  const reordered = [...meals];
+  [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
 
-  await supabase
-    .from("meals")
-    .update({ order_index: mealB.order_index })
-    .eq("id", mealA.id);
+  const changes = reordered
+    .map((meal, i) => ({ meal, i }))
+    .filter(({ meal, i }) => meal.order_index !== i);
 
-  await supabase
-    .from("meals")
-    .update({ order_index: mealA.order_index })
-    .eq("id", mealB.id);
+  setMeals(reordered.map((meal, i) => ({ ...meal, order_index: i })));
+
+  const results = await Promise.all(
+    changes.map(({ meal, i }) =>
+      supabase.from("meals").update({ order_index: i }).eq("id", meal.id)
+    )
+  );
+
+  const failed = results.find((r) => r.error);
+  if (failed) reportError("Could not save meal order.", failed.error);
 
   refreshMeals();
 };
@@ -488,6 +575,14 @@ useEffect(() => {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors">
+      {error && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[calc(100%-2rem)] flex items-start gap-3 text-sm text-red-600 bg-red-50 dark:bg-red-950 dark:text-red-300 border border-red-200 dark:border-red-900 rounded-lg px-3 py-2 shadow">
+          <span className="flex-1">{error}</span>
+          <button onClick={() => setError(null)} className="opacity-70 hover:opacity-100">
+            ✕
+          </button>
+        </div>
+      )}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Button onClick={() => changeDate("prev")} variant="ghost">
@@ -495,9 +590,7 @@ useEffect(() => {
           </Button>
 
           <Button
-            onClick={() =>
-              setSelectedDate(new Date().toISOString().split("T")[0])
-            }
+            onClick={() => setSelectedDate(localDateString())}
           >
             Today
           </Button>
@@ -517,12 +610,12 @@ useEffect(() => {
             value={tempDate}
             onChange={(e) => setTempDate(e.target.value)}
             onBlur={() => {
-              setSelectedDate(tempDate);
+              if (tempDate) setSelectedDate(tempDate);
               setShowDatePicker(false);
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                setSelectedDate(tempDate);
+                if (tempDate) setSelectedDate(tempDate);
                 setShowDatePicker(false);
               }
             }}
@@ -537,20 +630,9 @@ useEffect(() => {
             }}
             className="text-xl font-semibold tracking-tight cursor-pointer hover:opacity-70 transition"
           >
-            {new Date(selectedDate).toLocaleDateString("en-GB", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            })}
+            {formatDateLabel(selectedDate)}
           </h1>
         )}
-        <input
-          id="hidden-date"
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="hidden"
-        />
         <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 space-y-6 bg-background">
 
           <div className="flex justify-center">

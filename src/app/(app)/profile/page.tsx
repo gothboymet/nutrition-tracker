@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { calculateTargets } from "@/lib/calculations";
+import { localDateString } from "@/lib/date";
 
 type Mode = "cut" | "bulk";
 
@@ -29,7 +30,7 @@ export default function ProfilePage() {
         .from("profiles")
         .select("*")
         .eq("user_id", userData.user.id)
-        .single();
+        .maybeSingle();
 
       if (data) {
         setWeight(String(data.weight));
@@ -55,20 +56,41 @@ export default function ProfilePage() {
   setSaving(true);
 
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return;
+  if (!userData.user) {
+    setSaving(false);
+    return;
+  }
 
   const userId = userData.user.id;
 
-  // 1️⃣ Обновляем профиль
-  await supabase
+  const profileValues = {
+    weight: weightNum,
+    calorie_target: caloriesNum,
+    mode,
+    updated_at: new Date().toISOString(),
+  };
+
+  // 1️⃣ Обновляем профиль (или создаём, если это новый аккаунт)
+  const { data: updated, error: updateError } = await supabase
     .from("profiles")
-    .update({
-      weight: weightNum,
-      calorie_target: caloriesNum,
-      mode,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("user_id", userId);
+    .update(profileValues)
+    .eq("user_id", userId)
+    .select();
+
+  let profileError = updateError;
+  if (!updateError && (!updated || updated.length === 0)) {
+    const { error: insertError } = await supabase
+      .from("profiles")
+      .insert({ user_id: userId, ...profileValues });
+    profileError = insertError;
+  }
+
+  if (profileError) {
+    console.error(profileError);
+    setSaving(false);
+    alert("Could not save profile. Check your connection and try again.");
+    return;
+  }
 
   // 2️⃣ Пересчитываем новые targets
   const newTargets = calculateTargets(
@@ -77,16 +99,23 @@ export default function ProfilePage() {
     mode
   );
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = localDateString();
 
   // 3️⃣ Обновляем ВСЕ дни начиная с сегодня
-  await supabase
+  const { error: daysError } = await supabase
     .from("days")
     .update(newTargets)
     .eq("user_id", userId)
     .gte("date", today);
 
   setSaving(false);
+
+  if (daysError) {
+    console.error(daysError);
+    alert("Profile saved, but today's targets were not updated. Try saving again.");
+    return;
+  }
+
   alert("Saved");
 };
 
@@ -108,7 +137,7 @@ export default function ProfilePage() {
     .from("profiles")
     .select("*")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   const { data: products } = await supabase
     .from("products")

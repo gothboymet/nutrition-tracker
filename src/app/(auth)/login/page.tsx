@@ -17,15 +17,21 @@ export default function LoginPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-    if (!email) return;
+    if (!email) {
+      setError("Enter your email.");
+      return;
+    }
+
+    if (mode !== "reset" && !password) {
+      setError("Enter your password.");
+      return;
+    }
 
     setLoading(true);
     setError(null);
     setMessage(null);
 
     if (mode === "login") {
-      if (!password) return;
-
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -41,9 +47,7 @@ export default function LoginPage() {
     }
 
     if (mode === "register") {
-      if (!password) return;
-
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
@@ -51,7 +55,11 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       } else {
-        setMessage("Account created. You can now log in.");
+        setMessage(
+          data.session
+            ? "Account created. You can now log in."
+            : "Account created. Check your email to confirm it, then log in."
+        );
         setMode("login");
       }
     }
@@ -78,14 +86,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-black flex items-center justify-center">
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
       <div className="max-w-sm w-full px-6 py-8 space-y-6">
 
         <h1 className="text-xl font-semibold tracking-tight text-center">
           Nutrition Tracker
         </h1>
 
-        <div className="border border-gray-200 rounded-xl p-6 space-y-4">
+        <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 space-y-4">
 
           {/* Email */}
           <input
@@ -95,7 +103,7 @@ export default function LoginPage() {
             autoFocus
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={handleEnter}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-black"
+            className="w-full bg-background border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-foreground/30"
           />
 
           {/* Password (hidden in reset mode) */}
@@ -106,7 +114,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={handleEnter}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full bg-background border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-foreground/30"
             />
           )}
 
@@ -114,7 +122,7 @@ export default function LoginPage() {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full bg-black text-white py-2 rounded-lg text-base sm:text-sm hover:bg-gray-800 transition disabled:opacity-50"
+            className="w-full bg-foreground text-background py-2 rounded-lg text-base sm:text-sm hover:opacity-90 transition disabled:opacity-50"
           >
             {loading
               ? "Please wait..."
@@ -127,27 +135,27 @@ export default function LoginPage() {
 
           {/* Error */}
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <div className="text-sm text-red-600 bg-red-50 dark:bg-red-950 dark:text-red-300 border border-red-200 dark:border-red-900 rounded-lg px-3 py-2">
               {error}
             </div>
           )}
 
           {/* Success */}
           {message && (
-            <div className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+            <div className="text-sm text-green-600 bg-green-50 dark:bg-green-950 dark:text-green-300 border border-green-200 dark:border-green-900 rounded-lg px-3 py-2">
               {message}
             </div>
           )}
 
           {/* Secondary actions */}
-          <div className="text-xs text-gray-500 flex justify-between">
+          <div className="text-xs text-zinc-500 dark:text-zinc-400 flex justify-between">
 
             {mode !== "reset" && (
               <button
                 onClick={() =>
                   setMode(mode === "login" ? "register" : "login")
                 }
-                className="hover:text-black transition"
+                className="hover:text-foreground transition"
               >
                 {mode === "login"
                   ? "Create account"
@@ -158,7 +166,7 @@ export default function LoginPage() {
             {mode === "login" && (
               <button
                 onClick={() => setMode("reset")}
-                className="hover:text-black transition"
+                className="hover:text-foreground transition"
               >
                 Forgot password?
               </button>
@@ -167,7 +175,7 @@ export default function LoginPage() {
             {mode === "reset" && (
               <button
                 onClick={() => setMode("login")}
-                className="hover:text-black transition"
+                className="hover:text-foreground transition"
               >
                 Back to login
               </button>

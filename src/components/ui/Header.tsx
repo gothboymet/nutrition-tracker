@@ -12,8 +12,8 @@ export default function Header() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    const saved = localStorage.getItem("theme");
-    if (saved === "dark") {
+    // ThemeProvider may have applied the system theme; show the real one.
+    if (document.documentElement.getAttribute("data-theme") === "dark") {
       setTheme("dark");
     }
   }, []);

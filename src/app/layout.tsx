@@ -27,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -35,7 +35,10 @@ export default function RootLayout({
               (function() {
                 try {
                   const saved = localStorage.getItem("theme");
-                  if (saved === "dark") {
+                  const dark = saved
+                    ? saved === "dark"
+                    : window.matchMedia("(prefers-color-scheme: dark)").matches;
+                  if (dark) {
                     document.documentElement.setAttribute("data-theme", "dark");
                   }
                 } catch (e) {}

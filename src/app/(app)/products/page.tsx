@@ -50,7 +50,7 @@ export default function ProductsPage() {
   const saveEdit = async () => {
   if (!editingId) return;
 
-  await supabase
+  const { error } = await supabase
     .from("products")
     .update({
       name: editForm.name,
@@ -62,6 +62,12 @@ export default function ProductsPage() {
       salt_per_100g: Number(editForm.salt) || 0,
     })
     .eq("id", editingId);
+
+  if (error) {
+    console.error(error);
+    alert("Could not save product. Check your connection and try again.");
+    return;
+  }
 
   setEditingId(null);
   setEditForm(null);
@@ -96,7 +102,7 @@ export default function ProductsPage() {
 
     if (!form.name.trim()) return;
 
-    await supabase.from("products").insert({
+    const { error } = await supabase.from("products").insert({
       user_id: userData.user.id,
       name: form.name,
       calories_per_100g: Number(form.calories) || 0,
@@ -106,6 +112,12 @@ export default function ProductsPage() {
       fiber_per_100g: Number(form.fiber) || 0,
       salt_per_100g: Number(form.salt) || 0,
     });
+
+    if (error) {
+      console.error(error);
+      alert("Could not add product. Check your connection and try again.");
+      return;
+    }
 
     setForm({
       name: "",
@@ -121,10 +133,16 @@ export default function ProductsPage() {
   };
 
   const archiveProduct = async (id: string) => {
-    await supabase
+    const { error } = await supabase
       .from("products")
       .update({ archived: true })
       .eq("id", id);
+
+    if (error) {
+      console.error(error);
+      alert("Could not archive product.");
+      return;
+    }
 
     loadProducts();
   };
